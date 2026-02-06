@@ -1,0 +1,2 @@
+[console_scripts]
+pythondocker = pythondocker.cli:main

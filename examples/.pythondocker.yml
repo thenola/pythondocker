@@ -1,0 +1,13 @@
+# Пример конфигурации PythonDocker
+# Файл .pythondocker.yml или .pythondocker.json в корне проекта
+# Параметры из CLI переопределяют значения из конфига
+
+python: "3.11"              # или default_interpreter: "pypy3.11"
+requirements: "requirements_example.txt"
+encoding: "utf-8"
+env:
+  DEBUG: "false"
+  PYTHONDOCKER_CONFIG: "yes"
+# Опционально для PyPy/Jython:
+# pypy_jit_options: "trace_limit=1000"
+# java_opts: "-Xmx1g"

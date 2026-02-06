@@ -1,0 +1,23 @@
+<!--
+  Справочник: настройки для PyCharm External Tools.
+  Создавайте инструменты вручную по ide/README.md — см. раздел PyCharm.
+-->
+
+<!--
+  Инструмент 1: PythonDocker Run
+  Settings → Tools → External Tools → + 
+  Name:     PythonDocker: Run
+  Program:  pythondocker
+  Arguments: $FilePath$
+  Working:  $FileDir$
+-->
+
+<!--
+  Инструмент 2: PythonDocker Run (Python 2.7)
+  Arguments: $FilePath$ --python 2.7
+-->
+
+<!--
+  Инструмент 3: PythonDocker Run (with requirements)
+  Arguments: $FilePath$ --requirements $ProjectFileDir$/requirements.txt
+-->

@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PythonDocker: Run current file",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pythondocker ${file}",
+      "cwd": "${fileDirname}"
+    },
+    {
+      "name": "PythonDocker: Run with Python 2.7",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pythondocker ${file} --python 2.7",
+      "cwd": "${fileDirname}"
+    },
+    {
+      "name": "PythonDocker: Run with requirements",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pythondocker ${file} --requirements ${workspaceFolder}/requirements.txt",
+      "cwd": "${fileDirname}"
+    }
+  ]
+}

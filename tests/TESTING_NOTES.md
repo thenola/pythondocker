@@ -57,6 +57,41 @@ pythondocker test_requirements.py --requirements requirements_test.txt
 pythondocker tests/test_requirements.py --requirements tests/requirements_test.txt
 ```
 
+## Юнит-тесты
+
+Юнит-тесты покрывают модули: version_detector, config_loader, notebook_runner, docker_runner, commands, pyenv_manager, alternative_interpreters, cli.
+
+Запуск всех юнит-тестов (через run_all_tests.py — рекомендовано):
+
+```bash
+python tests/run_all_tests.py
+```
+
+Или явно указать модули (без discover — иначе подхватятся интеграционные скрипты test_python2.py и др., которые на Python 2):
+
+```bash
+python -m unittest tests.test_version_detector tests.test_config_loader tests.test_notebook_runner tests.test_docker_runner tests.test_commands tests.test_pyenv_manager tests.test_alternative_interpreters tests.test_cli -v
+```
+
+Запуск отдельного модуля:
+
+```bash
+python -m unittest tests.test_version_detector -v
+python -m unittest tests.test_config_loader -v
+python -m unittest tests.test_notebook_runner -v
+python -m unittest tests.test_docker_runner -v
+python -m unittest tests.test_commands -v
+python -m unittest tests.test_pyenv_manager -v
+python -m unittest tests.test_alternative_interpreters -v
+python -m unittest tests.test_cli -v
+```
+
+Полный прогон (юнит + интеграционные):
+
+```bash
+python tests/run_all_tests.py
+```
+
 ## Рекомендации по запуску тестов
 
 1. **Для Python 2 тестов:** Убедитесь, что Python 2.7 установлен в системе или доступен через pyenv

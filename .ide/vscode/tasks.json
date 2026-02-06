@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PythonDocker: Run current file",
+      "type": "shell",
+      "command": "pythondocker",
+      "args": ["${file}"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PythonDocker: Run with Python 2.7",
+      "type": "shell",
+      "command": "pythondocker",
+      "args": ["${file}", "--python", "2.7"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PythonDocker: Run with requirements",
+      "type": "shell",
+      "command": "pythondocker",
+      "args": [
+        "${file}",
+        "--requirements",
+        "${workspaceFolder}/requirements.txt"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PythonDocker: Run with encoding cp1251",
+      "type": "shell",
+      "command": "pythondocker",
+      "args": ["${file}", "--encoding", "cp1251"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

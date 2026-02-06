@@ -1,0 +1,9 @@
+{
+  "python": "3.11",
+  "requirements": "requirements_example.txt",
+  "encoding": "utf-8",
+  "env": {
+    "DEBUG": "false",
+    "PYTHONDOCKER_CONFIG": "yes"
+  }
+}

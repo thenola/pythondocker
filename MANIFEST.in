@@ -1,0 +1,8 @@
+include LICENSE
+include README.md
+include MANUAL.md
+include requirements.txt
+recursive-include examples *.py *.txt
+recursive-include completions *.bash *.zsh *.ps1
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

@@ -403,14 +403,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Авторы
-
-- **thenola** - [GitHub](https://github.com/thenola)
-
----
-
-**GitHub**: [thenola/pythondocker](https://github.com/thenola/pythondocker)
-
 **Лицензия**: MIT
+
 
 

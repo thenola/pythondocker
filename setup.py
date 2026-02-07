@@ -9,7 +9,7 @@ long_description = readme_file.read_text(encoding='utf-8') if readme_file.exists
 
 # Читаем версию из __init__.py
 version_file = Path(__file__).parent / "pythondocker" / "__init__.py"
-version = "2.0.0"
+version = "2.1.0"
 if version_file.exists():
     for line in version_file.read_text(encoding='utf-8').splitlines():
         if line.startswith('__version__'):

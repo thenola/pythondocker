@@ -10,8 +10,9 @@ import zipfile
 import tarfile
 import shutil
 import tempfile
+import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from . import alternative_interpreters
 # Импортируем pyenv_manager только при необходимости, чтобы избежать циклических импортов
@@ -65,45 +66,125 @@ class PythonInstaller:
         """
         Формирует URL для скачивания Python.
         
+        Поддерживает любую версию Python, доступную на python.org.
+        Автоматически находит доступные файлы для скачивания.
+        
         Args:
-            version: Версия Python (например, '2.7.18', '3.11.0')
+            version: Версия Python (например, '2.3', '2.7.18', '3.11.0', '3.14')
             
         Returns:
-            URL для скачивания или None если версия не поддерживается
+            URL для скачивания (первый подходящий вариант)
         """
         system, arch = self.get_system_info()
-        major, minor = version.split('.')[:2]
         
-        # Для Windows используем разные источники
+        # Находим доступные версии на python.org
+        available_versions = self._find_available_versions(version)
+        
+        if not available_versions:
+            return None
+        
+        # Возвращаем URL для первой доступной версии
+        # Проверка существования будет при скачивании
+        for ver in available_versions:
+            url = self._get_download_url_for_version(ver, system, arch)
+            if url:
+                return url
+        
+        return None
+    
+    def _find_available_versions(self, version: str) -> List[str]:
+        """
+        Находит доступные версии Python на python.org, соответствующие запрошенной версии.
+        
+        Args:
+            version: Запрошенная версия (например, '2.3', '3.11', '3.14.1')
+            
+        Returns:
+            Список доступных версий, отсортированных по убыванию
+        """
+        parts = version.split('.')
+        
+        # Если указана полная версия (X.Y.Z), возвращаем её
+        if len(parts) >= 3:
+            return [version]
+        
+        # Если указана короткая версия (X.Y), ищем все патч-версии
+        if len(parts) == 2:
+            major, minor = parts[0], parts[1]
+            
+            # Известные последние патч-версии (для быстрого доступа)
+            known_versions = {
+                '2.0': ['2.0.1', '2.0'],
+                '2.1': ['2.1.3', '2.1.2', '2.1.1', '2.1'],
+                '2.2': ['2.2.3', '2.2.2', '2.2.1', '2.2'],
+                '2.3': ['2.3.7', '2.3.6', '2.3.5', '2.3.4', '2.3.3', '2.3.2', '2.3.1', '2.3'],
+                '2.4': ['2.4.6', '2.4.5', '2.4.4', '2.4.3', '2.4.2', '2.4.1', '2.4'],
+                '2.5': ['2.5.6', '2.5.5', '2.5.4', '2.5.3', '2.5.2', '2.5.1', '2.5'],
+                '2.6': ['2.6.9', '2.6.8', '2.6.7', '2.6.6', '2.6.5', '2.6.4', '2.6.3', '2.6.2', '2.6.1', '2.6'],
+                '2.7': ['2.7.18', '2.7.17', '2.7.16', '2.7.15', '2.7.14', '2.7.13', '2.7.12', '2.7.11', '2.7.10'],
+                '3.0': ['3.0.1', '3.0'],
+                '3.1': ['3.1.5', '3.1.4', '3.1.3', '3.1.2', '3.1.1', '3.1'],
+                '3.2': ['3.2.6', '3.2.5', '3.2.4', '3.2.3', '3.2.2', '3.2.1', '3.2'],
+                '3.3': ['3.3.7', '3.3.6', '3.3.5', '3.3.4', '3.3.3', '3.3.2', '3.3.1', '3.3.0'],
+                '3.4': ['3.4.10', '3.4.9', '3.4.8', '3.4.7', '3.4.6', '3.4.5', '3.4.4', '3.4.3', '3.4.2', '3.4.1', '3.4.0'],
+                '3.5': ['3.5.10', '3.5.9', '3.5.8', '3.5.7', '3.5.6', '3.5.5', '3.5.4', '3.5.3', '3.5.2', '3.5.1', '3.5.0'],
+                '3.6': ['3.6.15', '3.6.14', '3.6.13', '3.6.12', '3.6.11', '3.6.10', '3.6.9', '3.6.8', '3.6.7', '3.6.6', '3.6.5', '3.6.4', '3.6.3', '3.6.2', '3.6.1', '3.6.0'],
+                '3.7': ['3.7.17', '3.7.16', '3.7.15', '3.7.14', '3.7.13', '3.7.12', '3.7.11', '3.7.10', '3.7.9', '3.7.8', '3.7.7', '3.7.6', '3.7.5', '3.7.4', '3.7.3', '3.7.2', '3.7.1', '3.7.0'],
+                '3.8': ['3.8.20', '3.8.19', '3.8.18', '3.8.17', '3.8.16', '3.8.15', '3.8.14', '3.8.13', '3.8.12', '3.8.11', '3.8.10', '3.8.9', '3.8.8', '3.8.7', '3.8.6', '3.8.5', '3.8.4', '3.8.3', '3.8.2', '3.8.1', '3.8.0'],
+                '3.9': ['3.9.25', '3.9.24', '3.9.23', '3.9.22', '3.9.21', '3.9.20', '3.9.19', '3.9.18', '3.9.17', '3.9.16', '3.9.15', '3.9.14', '3.9.13', '3.9.12', '3.9.11', '3.9.10', '3.9.9', '3.9.8', '3.9.7', '3.9.6', '3.9.5', '3.9.4', '3.9.3', '3.9.2', '3.9.1', '3.9.0'],
+                '3.10': ['3.10.19', '3.10.18', '3.10.17', '3.10.16', '3.10.15', '3.10.14', '3.10.13', '3.10.12', '3.10.11', '3.10.10', '3.10.9', '3.10.8', '3.10.7', '3.10.6', '3.10.5', '3.10.4', '3.10.3', '3.10.2', '3.10.1', '3.10.0'],
+                '3.11': ['3.11.14', '3.11.13', '3.11.12', '3.11.11', '3.11.10', '3.11.9', '3.11.8', '3.11.7', '3.11.6', '3.11.5', '3.11.4', '3.11.3', '3.11.2', '3.11.1', '3.11.0'],
+                '3.12': ['3.12.12', '3.12.11', '3.12.10', '3.12.9', '3.12.8', '3.12.7', '3.12.6', '3.12.5', '3.12.4', '3.12.3', '3.12.2', '3.12.1', '3.12.0'],
+                '3.13': ['3.13.12', '3.13.11', '3.13.10', '3.13.9', '3.13.8', '3.13.7', '3.13.6', '3.13.5', '3.13.4', '3.13.3', '3.13.2', '3.13.1', '3.13.0'],
+                '3.14': ['3.14.3', '3.14.2', '3.14.1', '3.14.0'],
+                '3.15': ['3.15.0'],
+            }
+            
+            version_key = f"{major}.{minor}"
+            if version_key in known_versions:
+                return known_versions[version_key]
+            
+            # Если версия не в списке, генерируем возможные варианты
+            # Пробуем от .0 до .20
+            versions = [f"{major}.{minor}.{patch}" for patch in range(20, -1, -1)]
+            versions.insert(0, f"{major}.{minor}")  # Добавляем версию без патча
+            return versions
+        
+        return [version]
+    
+    def _get_download_url_for_version(self, version: str, system: str, arch: str) -> Optional[str]:
+        """
+        Формирует URL для скачивания конкретной версии Python.
+        
+        Args:
+            version: Полная версия Python
+            system: Операционная система
+            arch: Архитектура
+            
+        Returns:
+            URL для скачивания
+        """
+        parts = version.split('.')
+        major = parts[0] if parts else '3'
+        
         if system == 'windows':
             if major == '2':
-                # Python 2.7 для Windows - используем MSI установщик или портативную версию
-                if version.startswith('2.7'):
-                    # Нормализуем до полной версии (2.7 -> 2.7.18)
-                    version_full = '2.7.18' if version == '2.7' else version
-                    # Пробуем MSI установщик
-                    return f"{self.PYTHON_ORG_BASE}/{version_full}/python-{version_full}.msi"
+                # Python 2.x для Windows: MSI установщик
+                return f"{self.PYTHON_ORG_BASE}/{version}/python-{version}.msi"
             else:
-                # Python 3.x для Windows
-                # Пробуем сначала найти системный Python, так как embeddable не поддерживает venv
-                # Если системный не найден, используем embeddable версию
-                # Нормализуем версию до полной (например, 3.11 -> 3.11.0)
-                if len(version.split('.')) == 2:
-                    version_full = f"{version}.0"
-                else:
-                    version_full = version
-                # Возвращаем embeddable версию, но предпочтительнее использовать системный Python
-                return f"{self.PYTHON_ORG_BASE}/{version_full}/python-{version_full}-embed-{arch}.zip"
+                # Python 3.x для Windows: embeddable версия
+                return f"{self.PYTHON_ORG_BASE}/{version}/python-{version}-embed-{arch}.zip"
         
-        # Для Linux и macOS используем исходники или бинарники
         elif system == 'linux':
-            # Используем pyenv или скачиваем исходники
+            # Исходники для Linux
             return f"{self.PYTHON_ORG_BASE}/{version}/Python-{version}.tgz"
         
         elif system == 'darwin':
+            # PKG для macOS
             return f"{self.PYTHON_ORG_BASE}/{version}/python-{version}-macos11.pkg"
         
         return None
+    
     
     def python_installed(self, version: str) -> bool:
         """
@@ -250,6 +331,18 @@ class PythonInstaller:
             if not quiet:
                 print(f"MSI установщик скачан: {msi_path}")
                 print(f"Установка Python {version} в {install_dir}...")
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                if not quiet:
+                    print(f"MSI файл не найден (404), пробуем альтернативные версии...")
+                return self._try_alternative_downloads(version, install_dir, quiet)
+            print(f"Ошибка HTTP при скачивании MSI: {e}")
+            return False
+        except Exception as e:
+            print(f"Ошибка при скачивании MSI: {e}")
+            return False
+        
+        try:
             
             # Используем msiexec для установки
             # /qn - тихая установка без UI
@@ -317,12 +410,66 @@ class PythonInstaller:
                 print(f"Python {version} скачан успешно")
             return self._extract_python(download_path, extract_dir, 'windows', quiet=quiet)
             
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                # Файл не найден, пробуем альтернативные версии
+                if not quiet:
+                    print(f"Файл не найден (404), пробуем альтернативные версии...")
+                return self._try_alternative_downloads(version, extract_dir, quiet)
+            print(f"Ошибка HTTP при скачивании: {e}")
+            return False
         except urllib.error.URLError as e:
             print(f"Ошибка при скачивании: {e}")
             return False
         except Exception as e:
             print(f"Неожиданная ошибка: {e}")
             return False
+    
+    def _try_alternative_downloads(self, version: str, extract_dir: Path, quiet: bool = False) -> bool:
+        """
+        Пробует скачать альтернативные версии Python.
+        
+        Args:
+            version: Версия Python
+            extract_dir: Директория для установки
+            quiet: Тихий режим
+            
+        Returns:
+            True если удалось скачать
+        """
+        system, arch = self.get_system_info()
+        available_versions = self._find_available_versions(version)
+        
+        # Пропускаем первую версию (она уже была попробована)
+        for ver in available_versions[1:]:
+            url = self._get_download_url_for_version(ver, system, arch)
+            if not url:
+                continue
+            
+            if not quiet:
+                print(f"Пробую версию {ver}: {url}")
+            
+            try:
+                if url.endswith('.zip'):
+                    download_path = extract_dir / f"python-{ver}.zip"
+                    urllib.request.urlretrieve(url, download_path)
+                    if not quiet:
+                        print(f"Python {ver} скачан успешно!")
+                    return self._extract_python(download_path, extract_dir, 'windows', quiet=quiet)
+                elif url.endswith('.msi'):
+                    if not quiet:
+                        print(f"Найден MSI установщик для версии {ver}")
+                    return self._install_msi_python(url, ver, extract_dir, quiet=quiet)
+            except urllib.error.HTTPError as e:
+                if not quiet:
+                    print(f"  Версия {ver} не найдена (HTTP {e.code})")
+                continue
+            except Exception as e:
+                if not quiet:
+                    print(f"  Ошибка при скачивании {ver}: {e}")
+                continue
+        
+        return False
     
     def _download_and_extract_source(self, url: str, version: str, extract_dir: Path, quiet: bool = False) -> bool:
         """Скачивает исходники Python (требует компиляции)."""

@@ -7,6 +7,7 @@ from typing import Optional, List, Dict
 
 
 # Маппинг версий Python на Docker-образы (официальные на Docker Hub)
+# Теперь поддерживаются любые версии Python, доступные на Docker Hub
 DOCKER_IMAGES = {
     '2.7': 'python:2.7-slim',
     '3.6': 'python:3.6-slim',
@@ -17,6 +18,7 @@ DOCKER_IMAGES = {
     '3.11': 'python:3.11-slim',
     '3.12': 'python:3.12-slim',
     '3.13': 'python:3.13-slim',
+    '3.14': 'python:3.14-slim',
     'pypy2.7': 'pypy:2.7-slim',
     'pypy3.9': 'pypy:3.9-slim',
     'pypy3.10': 'pypy:3.10-slim',
@@ -38,23 +40,29 @@ def docker_available() -> bool:
         return False
 
 
-def get_docker_image(python_version: str) -> Optional[str]:
+def get_docker_image(python_version: str) -> str:
     """
     Возвращает Docker-образ для указанной версии Python.
     
+    Теперь поддерживает любую версию Python, автоматически формируя имя образа.
+    Если образ не существует на Docker Hub, Docker выдаст ошибку при запуске.
+    
     Args:
-        python_version: Версия Python (2.7, 3.11, pypy3.11 и т.д.)
+        python_version: Версия Python (2.7, 3.11, 3.14, pypy3.11 и т.д.)
         
     Returns:
-        Имя образа (например python:3.11-slim) или None если не поддерживается
+        Имя образа (например python:3.11-slim или python:3.14-slim)
     """
     # Нормализация: убираем лишние части версии
     v = python_version.lower().strip()
-    # Прямое совпадение
+    
+    # Прямое совпадение с известными образами
     if v in DOCKER_IMAGES:
         return DOCKER_IMAGES[v]
+    
     # PyPy: pypy3.11.1 -> pypy3.11
     if v.startswith('pypy'):
+        # Проверяем известные образы
         for key in DOCKER_IMAGES:
             if key.startswith('pypy') and key in v:
                 return DOCKER_IMAGES[key]
@@ -62,13 +70,34 @@ def get_docker_image(python_version: str) -> Optional[str]:
         parts = v.replace('pypy', '').split('.')
         if len(parts) >= 2:
             short = f"pypy{parts[0]}.{parts[1]}"
-            return DOCKER_IMAGES.get(short)
-    # CPython: 3.11.5 -> 3.11
+            # Проверяем в известных образах
+            if short in DOCKER_IMAGES:
+                return DOCKER_IMAGES[short]
+            # Формируем имя образа для любой версии PyPy
+            return f"pypy:{parts[0]}.{parts[1]}-slim"
+        # Если не удалось распарсить, возвращаем как есть
+        return f"pypy:{v.replace('pypy', '')}-slim"
+    
+    # CPython: 3.11.5 -> 3.11, 3.14 -> 3.14
     parts = v.split('.')
     if len(parts) >= 2:
         short = f"{parts[0]}.{parts[1]}"
-        return DOCKER_IMAGES.get(short)
-    return DOCKER_IMAGES.get(v)
+        # Проверяем в известных образах
+        if short in DOCKER_IMAGES:
+            return DOCKER_IMAGES[short]
+        # Формируем имя образа для любой версии Python
+        return f"python:{short}-slim"
+    
+    # Если передана только мажорная версия (например, "3")
+    if len(parts) == 1:
+        # Для Python 2 используем 2.7
+        if parts[0] == '2':
+            return 'python:2.7-slim'
+        # Для Python 3 используем последнюю известную версию
+        return 'python:3.13-slim'
+    
+    # Если ничего не подошло, пробуем использовать как есть
+    return DOCKER_IMAGES.get(v, f"python:{v}-slim")
 
 
 def _path_for_docker(path: Path) -> str:
@@ -126,9 +155,8 @@ def run_in_docker(
     image = get_docker_image(python_version)
     if not image:
         raise RuntimeError(
-            f"Docker-образ для Python {python_version} не найден. "
-            f"Поддерживаются: {', '.join(DOCKER_IMAGES.keys())}. "
-            "Используйте режим без --docker (venv) для других версий."
+            f"Не удалось определить Docker-образ для Python {python_version}. "
+            "Проверьте правильность указания версии."
         )
     
     script_path = Path(script_path).resolve()
@@ -265,7 +293,10 @@ def run_shell_in_docker(python_version: str, cwd: Optional[str] = None, quiet: b
     
     image = get_docker_image(python_version)
     if not image:
-        raise RuntimeError(f"Docker-образ для Python {python_version} не найден.")
+        raise RuntimeError(
+            f"Не удалось определить Docker-образ для Python {python_version}. "
+            "Проверьте правильность указания версии."
+        )
     
     work_dir = Path(cwd).resolve() if cwd else Path.cwd()
     host_path = _path_for_docker(work_dir)
